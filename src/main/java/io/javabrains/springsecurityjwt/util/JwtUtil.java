@@ -1,26 +1,44 @@
 package io.javabrains.springsecurityjwt.util;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Header;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.security.*;
+import java.security.cert.CertificateException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import javax.crypto.spec.SecretKeySpec;
-import java.security.Key;
-import java.util.Base64;
 
 @Service
 public class JwtUtil {
 
-    private String SECRET_KEY = "95d10893d02e983745cb02bf3a753d374841afdaa7af6d91cf7cb52ac8202565";
+    private PrivateKey getPrivateKey() throws KeyStoreException, UnrecoverableKeyException, NoSuchAlgorithmException, CertificateException, IOException {
+        return getKeyPair().getPrivate();
+    }
+
+    private PublicKey getPublicKey() throws KeyStoreException, UnrecoverableKeyException, NoSuchAlgorithmException, CertificateException, IOException {
+        return getKeyPair().getPublic();
+    }
+
+    private KeyPair getKeyPair() throws KeyStoreException, UnrecoverableKeyException, NoSuchAlgorithmException, CertificateException, IOException {
+        KeyStore keystore = KeyStore.getInstance("PKCS12");
+        keystore.load(this.getClass().getClassLoader().getResourceAsStream("idcapp-jwt-signing-selfsigned.p12"), "".toCharArray());
+        Key key = keystore.getKey("1", "".toCharArray());
+        if (key instanceof PrivateKey) {
+            java.security.cert.Certificate cert = keystore.getCertificate("1");
+            PublicKey publicKey = cert.getPublicKey();
+            return new KeyPair(publicKey, (PrivateKey) key);
+        } else {
+            throw new KeyStoreException ("Private key not found in keystore");
+        }
+    }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -36,7 +54,15 @@ public class JwtUtil {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
+        PublicKey publicKey;
+        try {
+            publicKey = getPublicKey();
+        } catch (Exception e) {
+            System.out.println("Error message is " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+        return Jwts.parser().setSigningKey(publicKey).parseClaimsJws(token).getBody();
     }
 
     private Boolean isTokenExpired(String token) {
@@ -50,17 +76,26 @@ public class JwtUtil {
 
     private String createToken(Map<String, Object> claims, String subject) {
 
+        PrivateKey privateKey;
+        try {
+            privateKey = getPrivateKey();
+        } catch (Exception e) {
+            System.out.println("Error message is " + e.getMessage());
+            e.printStackTrace();
+            return "private key error";
+        }
         Instant now = Instant.now();
         return Jwts.builder()
-                .setHeaderParam("alg", "HS256")
+                .setHeaderParam("alg", "RS256")
                 .setHeaderParam("typ", "JWT")
                 .setHeaderParam("x5t", "a6d1abc9a008da3a6ff0eaeba0931cc5329b0a7b")
                 .setHeaderParam("x5u", "https://pki.ing.net")
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(Date.from(now.plus(30, ChronoUnit.MINUTES)))
-                .signWith(SignatureAlgorithm.HS256, SECRET_KEY)
+                .signWith(SignatureAlgorithm.RS256, privateKey)
                 .compact();
+
     }
 
     public Boolean validateToken(String token, UserDetails userDetails) {
