@@ -20,7 +20,7 @@ import java.util.Base64;
 @Service
 public class JwtUtil {
 
-    private String SECRET_KEY = "95d10893d02e983745cb02bf3a753d374841afdaa7af6d91cf7cb52ac8202565";
+    private String SECRET_KEY = "fake-secret";
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -55,7 +55,7 @@ public class JwtUtil {
                 .setHeaderParam("alg", "HS256")
                 .setHeaderParam("typ", "JWT")
                 .setHeaderParam("x5t", "a6d1abc9a008da3a6ff0eaeba0931cc5329b0a7b")
-                .setHeaderParam("x5u", "https://pki.ing.net")
+                .setHeaderParam("x5u", "https://pki.test-jwt.net")
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(Date.from(now.plus(30, ChronoUnit.MINUTES)))
