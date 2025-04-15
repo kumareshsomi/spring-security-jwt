@@ -54,7 +54,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .setHeaderParam("alg", "HS256")
                 .setHeaderParam("typ", "JWT")
-                .setHeaderParam("x5t", "a6d1abc9a008da3a6ff0eaeba0931cc5329b0a7b")
+                .setHeaderParam("x5t", "0000000000000000000000000000000000000000")
                 .setHeaderParam("x5u", "https://pki.test-jwt.net")
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
